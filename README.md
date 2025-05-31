@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>ChatGPT Search Fixes</title>
+  <title>Chat of Content</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
     body {
@@ -64,7 +65,9 @@
       flex-wrap: wrap;
     }
 
-    .chat-input input[type="text"] {
+    .chat-input input[type="text"],
+    #fileSelect,
+    #txtFileInput {
       flex: 1;
       padding: 0.75rem 1rem;
       border: 1px solid #ccc;
@@ -74,22 +77,9 @@
     }
 
     #fileSelect {
-      min-width: 250px;
-      height: 36px;
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      background-color: #fff;
-      font-size: 14px;
-      font-family: Arial, sans-serif;
       cursor: pointer;
-      transition: border-color 0.3s ease;
-    }
-
-    #fileSelect:focus {
-      outline: none;
-      border-color: #4a90e2;
-      box-shadow: 0 0 4px rgba(74, 144, 226, 0.6);
+      background-color: #fff;
+      font-family: Arial, sans-serif;
     }
 
     .chat-input button {
@@ -117,6 +107,27 @@
       font-size: 1.2rem;
       margin: 0.5rem 1rem 0 0;
     }
+
+    @media (max-width: 600px) {
+      .chat-input {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .chat-input input,
+      .chat-input select,
+      .chat-input input[type="file"],
+      .chat-input button {
+        width: 100%;
+        margin-bottom: 0.5rem;
+      }
+
+      .clear-history {
+        float: none;
+        margin: 0.5rem auto;
+        display: block;
+      }
+    }
   </style>
 </head>
 <body>
@@ -139,9 +150,7 @@
       <option value="">-- Chọn file --</option>
     </select>
 
-    <!-- Input chọn file TXT -->
-<input type="file" id="txtFileInput" accept=".txt" multiple style="min-width: 200px;" />
-
+    <input type="file" id="txtFileInput" accept=".txt" multiple />
 
     <button onclick="sendMessage()">
       <i class="fa fa-paper-plane" aria-hidden="true"></i>
@@ -154,182 +163,176 @@
 
   <button class="clear-history" title="Xóa lịch sử chat" onclick="clearChatHistory()">🗑</button>
 
-<script>
-  let fixesData = [];
-  const existingMessages = new Set();
+  <script>
+    let fixesData = [];
+    const existingMessages = new Set();
 
-  window.onload = function () {
-    restoreHistoryFromLocalStorage();
+    window.onload = function () {
+      restoreHistoryFromLocalStorage();
 
-    fetch('fixes.json')
-      .then(response => {
-        if (!response.ok) throw new Error('Không thể tải fixes.json');
-        return response.json();
-      })
-      .then(data => {
-        fixesData = data;
-        populateFileSelect();
-      })
-      .catch(err => {
-        addMessage("Lỗi khi tải file JSON: " + err.message, "incoming");
+      fetch('fixes.json')
+        .then(response => {
+          if (!response.ok) throw new Error('Không thể tải fixes.json');
+          return response.json();
+        })
+        .then(data => {
+          fixesData = data;
+          populateFileSelect();
+        })
+        .catch(err => {
+          addMessage("Lỗi khi tải file JSON: " + err.message, "incoming");
+        });
+    };
+
+    function populateFileSelect() {
+      const select = document.getElementById('fileSelect');
+      select.innerHTML = '<option value="">-- Chọn file --</option>';
+      fixesData.forEach((file, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        option.textContent = file.file;
+        select.appendChild(option);
       });
-  };
-
-  function populateFileSelect() {
-    const select = document.getElementById('fileSelect');
-    select.innerHTML = '<option value="">-- Chọn file --</option>';
-    fixesData.forEach((file, idx) => {
-      const option = document.createElement('option');
-      option.value = idx;
-      option.textContent = file.file;
-      select.appendChild(option);
-    });
-  }
-
-  function sendMessage() {
-    const input = document.getElementById('userInput');
-    const select = document.getElementById('fileSelect');
-
-    let filename = input.value.trim();
-    if (!filename && select.value !== "") {
-      filename = select.options[select.selectedIndex].text.trim();
     }
 
-    if (!filename) return;
+    function sendMessage() {
+      const input = document.getElementById('userInput');
+      const select = document.getElementById('fileSelect');
 
-    addMessage(filename, 'outgoing');
-
-    if (input.value.trim()) {
-      input.value = '';
-    }
-    if (select.value !== "") {
-      select.value = '';
-    }
-
-    if (fixesData.length === 0) {
-      addMessage("Dữ liệu chưa được tải. Vui lòng thử lại sau.", "incoming");
-      return;
-    }
-
-    const item = fixesData.find(i => i.file === filename);
-
-    if (!item) {
-      addMessage(`Không tìm thấy file "${filename}" trong dữ liệu.`, 'incoming');
-    } else {
-      const formattedContent = item.content.replace(/\r\n/g, '\n');
-      addMessage(`📄 ${item.file}\n\n${formattedContent}`, 'incoming', true);
-    }
-  }
-
-  function addMessage(text, type, isPreformatted = false) {
-    const key = JSON.stringify({ text, type, isPreformatted });
-    if (existingMessages.has(key)) {
-      return;
-    }
-    existingMessages.add(key);
-
-    const chatContainer = document.getElementById('chatContainer');
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${type}`;
-
-    text = text.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
-
-    if (isPreformatted) {
-      const pre = document.createElement('pre');
-      pre.style.whiteSpace = 'pre-wrap';
-      pre.textContent = text;
-      msgDiv.appendChild(pre);
-    } else {
-      msgDiv.innerHTML = text.replace(/\r\n|\n/g, "<br>");
-    }
-
-    chatContainer.appendChild(msgDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    saveHistoryToLocalStorage(text, type, isPreformatted);
-  }
-
-  function saveHistoryToLocalStorage(text, type, isPreformatted) {
-    let history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    const key = JSON.stringify({ text, type, isPreformatted });
-    const exists = history.some(msg => JSON.stringify(msg) === key);
-    if (!exists) {
-      history.push({ text, type, isPreformatted });
-      localStorage.setItem('chatHistory', JSON.stringify(history));
-    }
-  }
-
-  function restoreHistoryFromLocalStorage() {
-    const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    for (const msg of history) {
-      addMessage(msg.text, msg.type, msg.isPreformatted);
-    }
-  }
-
-  function clearChatHistory() {
-    localStorage.removeItem('chatHistory');
-    existingMessages.clear();
-    document.getElementById('chatContainer').innerHTML = '';
-  }
-
-  // Hàm chuyển file TXT thành JSON
-function convertTxtToJson() {
-  const fileInput = document.getElementById('txtFileInput');
-  if (!fileInput.files.length) {
-    alert('Vui lòng chọn ít nhất một file TXT để chuyển đổi.');
-    return;
-  }
-
-  const txtFiles = Array.from(fileInput.files).filter(file => file.name.endsWith('.txt'));
-  if (txtFiles.length === 0) {
-    alert('Vui lòng chọn file có định dạng .txt');
-    return;
-  }
-
-  const allFilesData = [];
-  let filesProcessed = 0;
-
-  txtFiles.forEach(file => {
-    const reader = new FileReader();
-
-    reader.onload = function(e) {
-      const content = e.target.result; // giữ nguyên chuỗi file txt gốc
-      allFilesData.push({
-        file: file.name,
-        content: content
-      });
-
-      filesProcessed++;
-
-      if (filesProcessed === txtFiles.length) {
-        // Tạo JSON mảng thuần túy
-        const jsonString = JSON.stringify(allFilesData, null, 2);
-
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'merged_files.json';
-
-        document.body.appendChild(a);
-        a.click();
-
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 100);
-
-        addMessage(`📄 Đã chuyển và tải file JSON gộp: merged_files.json`, 'incoming');
+      let filename = input.value.trim();
+      if (!filename && select.value !== "") {
+        filename = select.options[select.selectedIndex].text.trim();
       }
-    };
 
-    reader.onerror = function() {
-      alert(`Lỗi khi đọc file: ${file.name}`);
-    };
+      if (!filename) return;
 
-    reader.readAsText(file);
-  });
-}
+      addMessage(filename, 'outgoing');
+
+      input.value = '';
+      select.value = '';
+
+      if (fixesData.length === 0) {
+        addMessage("Dữ liệu chưa được tải. Vui lòng thử lại sau.", "incoming");
+        return;
+      }
+
+      const item = fixesData.find(i => i.file === filename);
+
+      if (!item) {
+        addMessage(`Không tìm thấy file "${filename}" trong dữ liệu.`, 'incoming');
+      } else {
+        const formattedContent = item.content.replace(/\r\n/g, '\n');
+        addMessage(`📄 ${item.file}\n\n${formattedContent}`, 'incoming', true);
+      }
+    }
+
+    function addMessage(text, type, isPreformatted = false) {
+      const key = JSON.stringify({ text, type, isPreformatted });
+      if (existingMessages.has(key)) return;
+      existingMessages.add(key);
+
+      const chatContainer = document.getElementById('chatContainer');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${type}`;
+
+      text = text.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+
+      if (isPreformatted) {
+        const pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.textContent = text;
+        msgDiv.appendChild(pre);
+      } else {
+        msgDiv.innerHTML = text.replace(/\r\n|\n/g, "<br>");
+      }
+
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      saveHistoryToLocalStorage(text, type, isPreformatted);
+    }
+
+    function saveHistoryToLocalStorage(text, type, isPreformatted) {
+      let history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      const key = JSON.stringify({ text, type, isPreformatted });
+      const exists = history.some(msg => JSON.stringify(msg) === key);
+      if (!exists) {
+        history.push({ text, type, isPreformatted });
+        localStorage.setItem('chatHistory', JSON.stringify(history));
+      }
+    }
+
+    function restoreHistoryFromLocalStorage() {
+      const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      for (const msg of history) {
+        addMessage(msg.text, msg.type, msg.isPreformatted);
+      }
+    }
+
+    function clearChatHistory() {
+      localStorage.removeItem('chatHistory');
+      existingMessages.clear();
+      document.getElementById('chatContainer').innerHTML = '';
+    }
+
+    function convertTxtToJson() {
+      const fileInput = document.getElementById('txtFileInput');
+      if (!fileInput.files.length) {
+        alert('Vui lòng chọn ít nhất một file TXT để chuyển đổi.');
+        return;
+      }
+
+      const txtFiles = Array.from(fileInput.files).filter(file => file.name.endsWith('.txt'));
+      if (txtFiles.length === 0) {
+        alert('Vui lòng chọn file có định dạng .txt');
+        return;
+      }
+
+      const allFilesData = [];
+      let filesProcessed = 0;
+
+      txtFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          allFilesData.push({
+            file: file.name,
+            content: e.target.result
+          });
+
+          filesProcessed++;
+
+          if (filesProcessed === txtFiles.length) {
+            const jsonString = JSON.stringify(allFilesData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'merged_files.json';
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }, 100);
+
+            addMessage(`📄 Đã chuyển và tải file JSON gộp: merged_files.json`, 'incoming');
+          }
+        };
+
+        reader.onerror = function () {
+          alert(`Lỗi khi đọc file: ${file.name}`);
+        };
+
+        reader.readAsText(file);
+      });
+    }
+  </script>
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+</body>
+</html>
+
 
 
 
