@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>ChatGPT Search Fixes</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -335,6 +335,6 @@ function convertTxtToJson() {
 
 
 </script>
-
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
 </body>
 </html>
